@@ -42,8 +42,10 @@ userSchema.pre('save', function (next) {
         bcrypt.genSalt(saltRounds, function (err, salt) {
             // next() : 바로 'app.post('/register', (req, res) => {'으로 이동함. 
             if (err) return next(err); 
+
             bcrypt.hash(user.password, salt, function (err, hash) {
                 if (err) return next(err); 
+
                 user.password = hash;
                 next();
             })
@@ -56,9 +58,13 @@ userSchema.pre('save', function (next) {
 
 userSchema.methods.comparePw = function (plainPw, cb) {
     // plainPw가 12345라면 암호화된 값과 같는지 체크.
-    bcrypt.compare(plainPw, userSchema.password, function (err, isMatch) {
-        if(err) return cb(err)
-        cb(null, isMatch)
+    bcrypt.compare(plainPw, this.password, function (err, isMatch) {
+        if(err) {
+            return cb(err)
+        }
+        else {
+            cb(null, isMatch)
+        }
     });
 }
 
@@ -70,6 +76,20 @@ userSchema.methods.generateToken = function (cb) {
     user.save(function (err, user) {
         if (err) return cb(err) 
         cb(null, user)
+    })
+}
+
+userSchema.statics.findByToken = function (token, cb) {
+    var user = this;
+    // token을 디코드한다.
+    jwt.verify(token, 'secretToken', function (err, decoded) {
+        // 유저 아이디를 이용해 유저를 찾은 다음에 클라이언트에서 가져온 토큰과 
+        // db에 보관된 토큰이 일치하는지 확인
+        user.findOne({"_id": decoded, "token": token}, function (err, user) {
+            if(err) return cb(err)
+
+            cb(null, user);
+        })
     })
 }
 
